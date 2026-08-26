@@ -1,20 +1,46 @@
 # agent_loop
 
-A coding agent in ~100 lines of Elixir. Three tools, one recursive function.
+A coding agent in ~150 lines of Elixir. One GenServer per conversation, four tools, subagents via `Task.async_stream`.
 
-```sh
-export ANTHROPIC_API_KEY=...
-mix deps.get
-mix run -e 'AgentLoop.run("list the files here and tell me what this project is")'
+```
+lib/agent_loop/session.ex  ← the loop. A GenServer whose state is the message history.
+lib/agent_loop/tools.ex    ← bash, read_file, edit_file, spawn_agent
+lib/agent_loop/claude.ex   ← POST /v1/messages
 ```
 
-Or as a binary: `mix escript.build && ./agent_loop "fix the failing test"`.
+## Run
 
-## Where the loop is
-`lib/agent_loop.ex` — read that first. Everything else is plumbing.
+```sh
+export ANTHROPIC_API_KEY=sk-ant-...
+mix deps.get
+iex -S mix
+```
 
-## Next steps (pick one)
-- Wrap `run/1` in a GenServer so a conversation survives across prompts
-- Spawn subagents with `Task.async_stream` — the model calls a `spawn_agent` tool
-- Stream tokens (`Req` + SSE) instead of waiting for the full response
-- Add a permission gate before `bash` runs
+```elixir
+{:ok, pid} = AgentLoop.Session.start_link()
+AgentLoop.Session.ask(pid, "what's in lib/?")
+AgentLoop.Session.ask(pid, "add a test for edit_file")   # same pid = same history
+AgentLoop.Session.ask(pid, "spawn two agents: review tools.ex and session.ex for bugs, merge findings")
+```
+
+## How it works
+
+```
+messages = [user prompt]
+loop:
+  response = Claude(messages, tools)
+  if stop_reason != "tool_use" → done
+  run every tool_use concurrently, collect tool_results
+  messages += [assistant response, user tool_results]
+```
+
+- The model never executes anything — it emits `tool_use` blocks, we run them and send back `tool_result` with the matching id.
+- The model is stateless; "memory" is resending the full history every call.
+- `spawn_agent` starts a fresh `Session` process and asks it the task. Parallel `spawn_agent` calls run as parallel BEAM processes.
+- A tool error goes back as `is_error: true`; the model adapts. A crash kills only that session process.
+
+## Not done yet
+- Permission gate before `bash`
+- Streaming (SSE) output
+- Supervisor / `DynamicSupervisor` for sessions so a subagent crash doesn't take the parent down
+- Depth limit on recursive `spawn_agent`

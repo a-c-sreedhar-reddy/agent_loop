@@ -4,6 +4,17 @@ defmodule AgentLoop.Claude do
   @url "https://api.anthropic.com/v1/messages"
   @model "claude-opus-5"
 
+  @doc """
+  Sends `messages` to the Messages API and returns the decoded response body.
+
+  Options:
+
+    * `:system` — system prompt string
+    * `:tools`  — list of tool specs the model may call
+
+  Raises if the API responds with anything other than 200. The receive timeout
+  is generous (10 min) because long tool-using turns can be slow.
+  """
   def chat(messages, opts) do
     body = %{
       model: @model,
