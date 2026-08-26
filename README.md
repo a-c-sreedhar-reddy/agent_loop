@@ -6,13 +6,22 @@ A coding agent in ~150 lines of Elixir. One GenServer per conversation, four too
 lib/agent_loop/session.ex  ← the loop. A GenServer whose state is the message history.
 lib/agent_loop/tools.ex    ← bash, read_file, edit_file, spawn_agent
 lib/agent_loop/claude.ex   ← POST /v1/messages
+lib/agent_loop/cli.ex      ← escript REPL
 ```
 
 ## Run
 
 ```sh
-export ANTHROPIC_API_KEY=sk-ant-...
+export ANTHROPIC_API_KEY=sk-ant-...   # or skip this and the CLI will ask for it
 mix deps.get
+mix escript.build
+./agent_loop                          # REPL; `exit` or Ctrl-D to quit
+./agent_loop "what's in lib/?"        # first prompt from args, then REPL
+```
+
+Or in iex:
+
+```sh
 iex -S mix
 ```
 
