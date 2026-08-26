@@ -7,7 +7,7 @@ defmodule AgentLoop.Session do
   Use the tools to inspect and change files. Be terse.
   """
 
-  def start_link(_), do: GenServer.start_link(__MODULE__, [])
+  def start_link(_opts \\ []), do: GenServer.start_link(__MODULE__, [])
   def ask(pid, prompt), do: GenServer.call(pid, {:ask, prompt}, :infinity)
 
   # state = messages
